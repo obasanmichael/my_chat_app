@@ -19,11 +19,12 @@ class _AuthScreenState extends State<AuthScreen> {
   void _submit() {
     final isValid = _formKey.currentState!.validate();
 
-    if (isValid) {
-      _formKey.currentState!.save();
-      print(_enteredEmail);
-      print(_enteredPassword);
+    if (!isValid) {
+      return;
     }
+    _formKey.currentState!.save();
+    print(_enteredEmail);
+    print(_enteredPassword);
   }
 
   @override
