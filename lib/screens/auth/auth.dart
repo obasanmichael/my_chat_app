@@ -1,5 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+
+final firebase = FirebaseAuth.instance;
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -16,15 +19,26 @@ class _AuthScreenState extends State<AuthScreen> {
   var _enteredEmail = '';
   var _enteredPassword = '';
 
-  void _submit() {
+  void _submit() async {
     final isValid = _formKey.currentState!.validate();
 
     if (!isValid) {
       return;
     }
     _formKey.currentState!.save();
-    print(_enteredEmail);
-    print(_enteredPassword);
+    try {
+      if (_isLogin) {
+        final userCredentials = await firebase.signInWithEmailAndPassword(
+            email: _enteredEmail, password: _enteredPassword);
+      } else {
+        final userCredentials = await firebase.createUserWithEmailAndPassword(
+            email: _enteredEmail, password: _enteredPassword);
+      }
+    } on FirebaseAuthException catch (error) {
+      ScaffoldMessenger.of(context).clearMaterialBanners();
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.message ?? 'Authentication failed.')));
+    }
   }
 
   @override
@@ -97,14 +111,22 @@ class _AuthScreenState extends State<AuthScreen> {
                                       child: Text('Create one'))
                                 ],
                               )
-                            : addHeight(5),
+                            : Row(
+                                children: [
+                                  TextButton(
+                                    onPressed: () {
+                                      setState(() {
+                                        _isLogin = !_isLogin;
+                                      });
+                                    },
+                                    child: Text('I already have an account'),
+                                  )
+                                ],
+                              ),
                         ElevatedButton(
                           style: ElevatedButton.styleFrom(),
                           onPressed: () {
                             _submit();
-                            setState(() {
-                              _isLogin = !_isLogin;
-                            });
                           },
                           child: Text(_isLogin ? 'Sign in' : 'Sign up'),
                         ),
