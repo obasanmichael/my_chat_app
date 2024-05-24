@@ -1,6 +1,10 @@
+import 'dart:io';
+
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:my_chat_app/widgets/user_image_picker.dart';
 
 final firebase = FirebaseAuth.instance;
 
@@ -18,11 +22,12 @@ class _AuthScreenState extends State<AuthScreen> {
   var _isLogin = true;
   var _enteredEmail = '';
   var _enteredPassword = '';
+  File? _selecetedImage;
 
   void _submit() async {
     final isValid = _formKey.currentState!.validate();
 
-    if (!isValid) {
+    if (!isValid || !_isLogin && _selecetedImage == null) {
       return;
     }
     _formKey.currentState!.save();
@@ -33,6 +38,15 @@ class _AuthScreenState extends State<AuthScreen> {
       } else {
         final userCredentials = await firebase.createUserWithEmailAndPassword(
             email: _enteredEmail, password: _enteredPassword);
+
+        final storageRef = FirebaseStorage.instance
+            .ref()
+            .child('user_images')
+            .child('${userCredentials.user!.uid}.jpg');
+
+        await storageRef.putFile(_selecetedImage!);
+        final imageURL = await storageRef.getDownloadURL();
+        print(imageURL);
       }
     } on FirebaseAuthException catch (error) {
       ScaffoldMessenger.of(context).clearMaterialBanners();
@@ -61,6 +75,12 @@ class _AuthScreenState extends State<AuthScreen> {
                             ? 'Sign in to your account'
                             : 'Create a New Account'),
                         addHeight(5),
+                        if (!_isLogin)
+                          UserImagePicker(
+                            onPickImage: (_pickedImage) {
+                              _selecetedImage = _pickedImage;
+                            },
+                          ),
                         TextFormField(
                           decoration: InputDecoration(
                               labelText: 'Email',
