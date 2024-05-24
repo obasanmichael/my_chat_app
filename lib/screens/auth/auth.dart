@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -21,8 +22,10 @@ class _AuthScreenState extends State<AuthScreen> {
   final _formKey = GlobalKey<FormState>();
   var _isLogin = true;
   var _enteredEmail = '';
+  var _enteredUserName = '';
   var _enteredPassword = '';
   File? _selecetedImage;
+  var _isAuthenticating = false;
 
   void _submit() async {
     final isValid = _formKey.currentState!.validate();
@@ -32,6 +35,9 @@ class _AuthScreenState extends State<AuthScreen> {
     }
     _formKey.currentState!.save();
     try {
+      setState(() {
+        _isAuthenticating = true;
+      });
       if (_isLogin) {
         final userCredentials = await firebase.signInWithEmailAndPassword(
             email: _enteredEmail, password: _enteredPassword);
@@ -46,13 +52,23 @@ class _AuthScreenState extends State<AuthScreen> {
 
         await storageRef.putFile(_selecetedImage!);
         final imageURL = await storageRef.getDownloadURL();
-        print(imageURL);
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(userCredentials.user!.uid)
+            .set({
+          'username': _enteredUserName,
+          'email': _enteredEmail,
+          'image-url': imageURL
+        });
       }
     } on FirebaseAuthException catch (error) {
       ScaffoldMessenger.of(context).clearMaterialBanners();
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(error.message ?? 'Authentication failed.')));
     }
+    setState(() {
+      _isAuthenticating = false;
+    });
   }
 
   @override
@@ -101,6 +117,24 @@ class _AuthScreenState extends State<AuthScreen> {
                           },
                         ),
                         addHeight(5),
+                        if (!_isLogin)
+                          TextFormField(
+                            enableSuggestions: false,
+                            decoration: InputDecoration(
+                              labelText: 'Username',
+                            ),
+                            validator: (value) {
+                              if (value == null ||
+                                  value.isEmpty ||
+                                  value.trim().length < 4) {
+                                return 'Please enter at least 4 characters';
+                              }
+                            },
+                            onSaved: (value) {
+                              _enteredUserName = value!;
+                            },
+                          ),
+                        addHeight(5),
                         TextFormField(
                           decoration: InputDecoration(
                               labelText: 'Password',
@@ -117,39 +151,44 @@ class _AuthScreenState extends State<AuthScreen> {
                           },
                         ),
                         addHeight(5),
-                        _isLogin
-                            ? Row(
-                                children: [
-                                  Text('Don\'t have an account?'),
-                                  addWidth(3),
-                                  TextButton(
+                        if (!_isAuthenticating)
+                          _isLogin
+                              ? Row(
+                                  children: [
+                                    Text('Don\'t have an account?'),
+                                    addWidth(3),
+                                    TextButton(
+                                        onPressed: () {
+                                          setState(() {
+                                            _isLogin = !_isLogin;
+                                          });
+                                        },
+                                        child: Text('Create one'))
+                                  ],
+                                )
+                              : Row(
+                                  children: [
+                                    TextButton(
                                       onPressed: () {
                                         setState(() {
                                           _isLogin = !_isLogin;
                                         });
                                       },
-                                      child: Text('Create one'))
-                                ],
-                              )
-                            : Row(
-                                children: [
-                                  TextButton(
-                                    onPressed: () {
-                                      setState(() {
-                                        _isLogin = !_isLogin;
-                                      });
-                                    },
-                                    child: Text('I already have an account'),
-                                  )
-                                ],
-                              ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(),
-                          onPressed: () {
-                            _submit();
-                          },
-                          child: Text(_isLogin ? 'Sign in' : 'Sign up'),
-                        ),
+                                      child: Text('I already have an account'),
+                                    )
+                                  ],
+                                ),
+                        addHeight(5),
+                        if (_isAuthenticating)
+                          const CircularProgressIndicator(),
+                        if (!_isAuthenticating)
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(),
+                            onPressed: () {
+                              _submit();
+                            },
+                            child: Text(_isLogin ? 'Sign in' : 'Sign up'),
+                          ),
                       ],
                     ),
                   )
