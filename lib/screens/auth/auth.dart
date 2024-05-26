@@ -17,6 +17,7 @@ class AuthScreen extends StatefulWidget {
 }
 
 class _AuthScreenState extends State<AuthScreen> {
+  
   Widget addHeight(double height) => SizedBox(height: height.h);
   Widget addWidth(double width) => SizedBox(width: width.w);
   final _formKey = GlobalKey<FormState>();
